@@ -28,6 +28,10 @@ library(dplyr)
 ##     intersect, setdiff, setequal, union
 ```
 
+```r
+library(ggplot2)
+```
+
 ## Load and preprocess the data
 The date dimension was originally a 'char'. Best to change this to 'Date'.
 
@@ -61,30 +65,38 @@ First, I needed to get the steps per day. Then I was able to get to the mean tot
 
 
 ```r
-steps_per_day <- activity %>% group_by(date) %>% summarize(sum(steps))
-steps_per_day <- rename(steps_per_day,steps = `sum(steps)`)
-attach(steps_per_day)
-hist(steps)
+steps_per_day <- activity %>% group_by(date) %>% 
+  summarize(steps_sum=sum(steps,rm.na=TRUE))
+ggplot(steps_per_day,aes(x=steps_sum)) + geom_histogram() + 
+  labs(title='Histogram of Total Steps Per Day',x='Steps',y='Frequency Count')
+```
+
+```
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+```
+
+```
+## Warning: Removed 8 rows containing non-finite values (stat_bin).
 ```
 
 ![](PA1_template_files/figure-html/unnamed-chunk-3-1.png)<!-- -->
 
 ```r
-print(paste('Median total steps per day:',median(steps, 
+print(paste('Median total steps per day:',median(steps_per_day$steps_sum, 
   na.rm = TRUE)))
 ```
 
 ```
-## [1] "Median total steps per day: 10765"
+## [1] "Median total steps per day: 10766"
 ```
 
 ```r
-print(paste('Mean total steps per day:',mean(steps, 
-  na.rm = TRUE)))
+print(paste('Mean total steps per day:',as.integer(mean(steps_per_day$steps_sum, 
+  na.rm = TRUE))))
 ```
 
 ```
-## [1] "Mean total steps per day: 10766.1886792453"
+## [1] "Mean total steps per day: 10767"
 ```
 
 ## What is the average daily activity pattern?
@@ -92,27 +104,17 @@ I determined the average steps for each interval and then graphed it over time. 
 
 
 ```r
-steps_per_interval <- activity %>% group_by(interval) %>% summarize(mean(steps,
-  na.rm = TRUE))
-steps_per_interval <- rename(steps_per_interval,
-                             steps = `mean(steps, na.rm = TRUE)`)
-attach(steps_per_interval)
-```
-
-```
-## The following object is masked from steps_per_day:
-## 
-##     steps
-```
-
-```r
-plot(x=interval,y=steps,type = 'l')
+steps_per_interval <- activity %>% group_by(interval) %>% 
+  summarize(steps_mean=mean(steps,na.rm = TRUE))
+ggplot(steps_per_interval,aes(x=interval,y=steps_mean)) + geom_line() + 
+  labs(title='Average Daily Activity',x='Interval',y='Step Mean')
 ```
 
 ![](PA1_template_files/figure-html/unnamed-chunk-4-1.png)<!-- -->
 
 ```r
-max_interval <- steps_per_interval[steps == max(steps),]$interval
+max_interval <- steps_per_interval[steps_per_interval$steps_mean == 
+                                     max(steps_per_interval$steps_mean),]$interval
 print(paste('Interval with most steps on average:',max_interval))
 ```
 
@@ -152,46 +154,35 @@ print(paste("Total # of rows with missing NAs, which only occurs with 'steps': "
 activity_cleansed <- activity %>% group_by(interval) %>% mutate(steps = 
   replace_na(steps, mean(steps, na.rm = TRUE)))
 steps_per_day_cleansed <- activity_cleansed %>% group_by(date) %>% 
-  summarize(sum(steps))
-steps_per_day_cleansed <- rename(steps_per_day_cleansed,steps = `sum(steps)`)
+  summarize(steps_sum=sum(steps))
 
-attach(steps_per_day_cleansed)
-```
-
-```
-## The following object is masked from steps_per_interval:
-## 
-##     steps
+ggplot(steps_per_day_cleansed,aes(x=steps_sum)) + geom_histogram() + 
+  labs(title='Histogram of Total Steps Per Day, Cleansed',x='Steps',
+       y='Frequency Count')
 ```
 
 ```
-## The following objects are masked from steps_per_day:
-## 
-##     date, steps
-```
-
-```r
-hist(steps)
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
 ```
 
 ![](PA1_template_files/figure-html/unnamed-chunk-5-1.png)<!-- -->
 
 ```r
 print(paste('Median total steps per day:',
-  median(steps, na.rm = TRUE)))
+  as.integer(median(steps_per_day_cleansed$steps_sum, na.rm = TRUE))))
 ```
 
 ```
-## [1] "Median total steps per day: 10766.1886792453"
+## [1] "Median total steps per day: 10766"
 ```
 
 ```r
 print(paste('Mean total steps per day:',
-  mean(steps, na.rm = TRUE)))
+  as.integer(mean(steps_per_day_cleansed$steps_sum, na.rm = TRUE))))
 ```
 
 ```
-## [1] "Mean total steps per day: 10766.1886792453"
+## [1] "Mean total steps per day: 10766"
 ```
 
 ## Are there differences in activity patterns between weekdays and weekends?
@@ -224,76 +215,18 @@ head(activity_cleansed)
 ```
 
 ```r
-activity_cleansed_weekday <- activity_cleansed[
-  activity_cleansed$day_type == 'weekday',]
-activity_cleansed_weekend <- activity_cleansed[
-  activity_cleansed$day_type == 'weekend',]
-
-steps_per_interval_weekday <- activity_cleansed_weekday %>% 
-  group_by(interval) %>% summarize(mean(steps))
-steps_per_interval_weekday <- rename(steps_per_interval_weekday,
-                             steps = `mean(steps)`)
-
-steps_per_interval_weekend <- activity_cleansed_weekend %>% 
-  group_by(interval) %>% summarize(mean(steps))
-steps_per_interval_weekend <- rename(steps_per_interval_weekend,
-                                     steps = `mean(steps)`)
-
-par(mfrow=c(1,2))
-attach(steps_per_interval_weekday)
+to_plot <- activity_cleansed %>% group_by(day_type,interval) %>% 
+  summarize(avg_steps=mean(steps))
 ```
 
 ```
-## The following object is masked from steps_per_day_cleansed:
-## 
-##     steps
-```
-
-```
-## The following objects are masked from steps_per_interval:
-## 
-##     interval, steps
-```
-
-```
-## The following object is masked from steps_per_day:
-## 
-##     steps
+## `summarise()` has grouped output by 'day_type'. You can override using the `.groups` argument.
 ```
 
 ```r
-plot(interval,steps, 
-     main="Avg Steps Per Interval, Weekdays",type='l')
-attach(steps_per_interval_weekend)
-```
-
-```
-## The following objects are masked from steps_per_interval_weekday:
-## 
-##     interval, steps
-```
-
-```
-## The following object is masked from steps_per_day_cleansed:
-## 
-##     steps
-```
-
-```
-## The following objects are masked from steps_per_interval:
-## 
-##     interval, steps
-```
-
-```
-## The following object is masked from steps_per_day:
-## 
-##     steps
-```
-
-```r
-plot(interval,steps, 
-     main="Avg Steps Per Interval, Weekends",type='l')
+ggplot(to_plot,aes(x=interval,y=avg_steps)) + geom_line() + 
+  facet_grid(day_type ~ .) + labs(title='Average Daily Activity',x='Interval',
+                                  y='Step Mean')
 ```
 
 ![](PA1_template_files/figure-html/unnamed-chunk-6-1.png)<!-- -->
